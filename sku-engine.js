@@ -1,10 +1,7 @@
 // sku-engine.js
-// Centralized Business Logic for SKU Generation
-
 function parseTitle(rawText) {
     const title = rawText.toUpperCase();
     
-    // --- 1. CATEGORY ---
     let cat = "LP-";
     if (/\b(IPAD|TAB)\b/.test(title)) cat = "TB-";
     else if (/\b(DESKTOP|AIO|WORKSTATION|THIN CLIENT|MINI|IMAC|MAC MINI|TOWER|SFF|MICRO|M710S|NUC)\b/.test(title) && !title.includes("ZBOOK")) cat = "D-";
@@ -14,7 +11,6 @@ function parseTitle(rawText) {
     else if (/\b(DOCK|DOCKING)\b/.test(title)) cat = "DS-";
     else if (/\b(CHARGER|ADAPTER)\b/.test(title)) cat = "LC-";
 
-    // --- 2. RAM & STORAGE ---
     const ramMatch = title.match(/\b(\d+)\s*GB\s*(?:RAM|MEMORY)?/);
     let ram = ramMatch ? ramMatch[1] : "";
 
@@ -27,17 +23,13 @@ function parseTitle(rawText) {
         storage = unit === "TB" ? num + "TB" : num;
     } else {
         const allGbMatches = [...title.matchAll(/\b(\d+)\s*(GB|TB)\b/g)];
-        if (allGbMatches.length > 1) {
-            storage = allGbMatches[1][2] === "TB" ? allGbMatches[1][1] + "TB" : allGbMatches[1][1];
-        } else if (allGbMatches.length === 1 && !ramMatch) {
-            storage = allGbMatches[0][2] === "TB" ? allGbMatches[0][1] + "TB" : allGbMatches[0][1];
-        }
+        if (allGbMatches.length > 1) storage = allGbMatches[1][2] === "TB" ? allGbMatches[1][1] + "TB" : allGbMatches[1][1];
+        else if (allGbMatches.length === 1 && !ramMatch) storage = allGbMatches[0][2] === "TB" ? allGbMatches[0][1] + "TB" : allGbMatches[0][1];
     }
 
     if (cat === "D-" && !title.includes("IMAC") && !title.includes("THIN CLIENT")) { ram = ""; storage = ""; }
     if (cat === "ST-" || cat === "Misc-" || cat === "M-") { ram = ""; storage = ""; }
 
-    // --- 3. PROCESSOR ---
     let proc = "";
     const intelMatch = title.match(/\b(I[3579])[\s-]*(\d{3,5})([A-Z0-9]{0,2})\b/);
     const ultraMatch = title.match(/\bULTRA\s*([579])\s*(\d{3,4}[A-Z]*)\b/);
@@ -71,7 +63,6 @@ function parseTitle(rawText) {
         else if (/\b(WI-FI|WIFI)\b/.test(title)) proc = "wifi";
     }
 
-    // --- 4. MODEL EXTRACTION ---
     let modelStr = "";
     let featuresArr = [];
     
@@ -220,7 +211,6 @@ function parseTitle(rawText) {
         if (lGpuMatch) featuresArr.push(lGpuMatch[1].replace(/\s+/g, ''));
     }
 
-    // --- 5. COLOR, CONDITION & KEYBOARD ---
     let color = "";
     if (title.includes("SPACE GREY") || title.includes("SPACE GRAY")) color = "SG";
     else if (title.includes("SILVER")) color = "S";
@@ -239,11 +229,14 @@ function parseTitle(rawText) {
     let hasNoStand = title.includes("NO STAND") && cat === "M-";
     let hasBios = title.includes("BIOS");
     let hasNoStylus = title.includes("NO STYLUS");
+    
+    // Keyboards
     let hasNoKb = title.includes("NO KEYBOARD") || title.includes("NO KEYBAORD") || title.includes("W/O KEYBOARD");
+    let hasKb = (title.includes("KEYBOARD") || title.includes("KEYBAORD")) && !hasNoKb;
 
     return {
         cat, modelStr, proc, ram, storage, featuresArr, color, condition,
-        tags: { hasNoStand, hasNoStandGeneric, hasBios, hasNoStylus, hasNoKb }
+        tags: { hasNoStand, hasNoStandGeneric, hasBios, hasNoStylus, hasNoKb, hasKb }
     };
 }
 
@@ -265,11 +258,12 @@ function buildSkuString(p) {
 
     if (p.tags.hasNoStand) parts.push("NS");
     else if (p.tags.hasNoStandGeneric) parts.push("NOSTAND");
-    
     if (p.tags.hasBios) parts.push("BIOS");
     if (p.tags.hasNoStylus) parts.push("NOSTYLUS");
     if (p.condition) parts.push(p.condition);
+    
     if (p.tags.hasNoKb) parts.push("NOKB");
+    if (p.tags.hasKb) parts.push("KB");
 
     let finalSku = p.cat + parts.join("-");
     finalSku = finalSku.replace(/10th/ig, "10TH").replace(/11th/ig, "11TH").replace(/12th/ig, "12TH").replace(/13th/ig, "13TH").replace(/14th/ig, "14TH").replace(/8th/ig, "8TH").replace(/9th/ig, "9TH");
